@@ -2,12 +2,6 @@
 
 **通过 MCP（Model Context Protocol）协议驱动真实 Microsoft Excel 的本地增强版 ExcelMcp。**
 
-上游项目：[`sbroenne/mcp-server-excel`](https://github.com/sbroenne/mcp-server-excel)（MIT，v2.0.8）。
-本仓库是它的**下游构建（downstream build）**：在完整保留上游能力的基础上，修掉了本机实测中发现的 5 类缺陷，
-并补上一套可复现的构建 / 发布 / 回归验证工具链。
-
-> 与上游的关系：本仓库不是上游的官方分支，也不代表上游立场。
-> 上游版权声明已按 MIT 要求完整保留，详见 [`LICENSE`](LICENSE)。
 
 ## 文档
 
@@ -16,7 +10,6 @@
 | [**用户手册**](USER-GUIDE.md) | 使用者 | 安装、接入客户端、31 个工具的用法、两种列表参数格式、实战配方、错误排查表 |
 | [**技术手册**](TECHNICAL-MANUAL.md) | 维护者 / 二次开发者 | 分层架构、会话与 COM 层、工具面生成机制、五类补丁原理、实测事实集、验证体系 |
 | [部署手册](DEPLOYMENT.md) | 部署者 | 版本单一来源、补丁表、MCP 配置、验证证据、重建步骤 |
-| [对抗性审查报告](ADVERSARIAL-REVIEW.md) | 维护者 | 三视角问题清单 + 真机证据 + 处置 |
 
 ---
 
@@ -199,7 +192,12 @@ bash release.sh --no-build   # 跳过编译，只重新部署与打包
 ├── excel-mcp-bin/             # （部署目录，不入库）
 └── mcp-server-excel/          # 上游 v2.0.8 源码 + 本地补丁（含其自身 .gitignore）
 ```
+上游项目：[`sbroenne/mcp-server-excel`](https://github.com/sbroenne/mcp-server-excel)（MIT，v2.0.8）。
+本仓库是它的**下游构建（downstream build）**：在完整保留上游能力的基础上，修掉了本机实测中发现的 5 类缺陷，
+并补上一套可复现的构建 / 发布 / 回归验证工具链。
 
+> 与上游的关系：本仓库不是上游的官方分支，也不代表上游立场。
+> 上游版权声明已按 MIT 要求完整保留，详见 [`LICENSE`](LICENSE)。
 **关于 `mcp-server-excel/.github/workflows/`**：上游的 11 个 CI 工作流依赖其自托管 Windows runner、
 sealed release secrets 与 gh-pages / 插件市场发布目标，本仓库不具备这些条件。原样纳入会导致**每次推送都失败**
 并向仓库所有者发送失败通知，因此**有意排除**（已在 `.gitignore` 中显式注明），而不是悄悄删掉。
