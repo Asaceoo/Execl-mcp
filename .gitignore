@@ -1,0 +1,56 @@
+# =============================================================================
+# jyyj-mcp 助手 - repository ignore rules
+# =============================================================================
+# The tracked content of this repository is: the patched source tree under
+# mcp-server-excel/, the local build/release tooling (build.sh, release.sh, tools/),
+# and the deployment/verification notes (*.md). Everything below is either a local
+# toolchain cache, a build output, or a probe artefact, so none of it belongs in git.
+#
+# The nested mcp-server-excel/.gitignore still applies to that subtree and wins for
+# any pattern both files define (git evaluates rules from the top down, deepest last).
+# =============================================================================
+
+# --- Pinned SDK and package caches (multi-GB, machine specific) --------------
+.dotnet10/
+.dotnet-home/
+.nuget-packages/
+
+# --- Build output and published artefacts ------------------------------------
+# excel-mcp-bin/ is the deploy directory the local MCP client points at; it holds
+# ~135 copied assemblies that are rebuilt from source, never edited by hand.
+excel-mcp-bin/
+dist/
+[Bb]in/
+[Oo]bj/
+
+# --- Agent workspace (local memory / session state, not project source) ------
+.workbuddy/
+
+# --- Probe, demo and regression artefacts ------------------------------------
+_demo/
+_regshards/
+_trash/
+_research/
+
+# --- Publish staging tree (tools/publish.py) ---------------------------------
+# A standalone clone of the publishable file set, with its own .git. It lives inside the
+# workspace so the whole workflow stays in one place, and is never part of what gets published.
+_publish/
+
+# --- Run logs and ad-hoc listings --------------------------------------------
+_*.log
+*.log
+_*.txt
+
+# --- Upstream CI workflows (excluded deliberately) ---------------------------
+# These 11 workflows target the upstream maintainer's infrastructure: self-hosted
+# Windows runners with Excel installed, sealed release secrets, and gh-pages /
+# plugin-marketplace deploy targets that do not exist here. Included unchanged they
+# would fail on every push and mail a failure notice to the repository owner, so
+# they are withheld rather than shipped broken. The definitions remain available
+# upstream at https://github.com/sbroenne/mcp-server-excel/tree/main/.github/workflows
+mcp-server-excel/.github/workflows/
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.pyc

@@ -1,0 +1,53 @@
+{
+  "manifest_version": "0.3",
+  "name": "jyyj-mcp",
+  "display_name": "jyyj-mcp 助手 (Excel, Windows)",
+  "version": "2.0.8-jyyj.1",
+  "description": "Manage Sheets, Power Query, DAX, VBA, PowerPivot, Tables, Ranges, Charts, Formatting, Validation & more - requires Excel to be installed",
+  "long_description": "Automate the real Microsoft Excel application from Claude. 31 specialized tools with 328 operations for Power Query, DAX and the Data Model, VBA, PivotTables, Charts, Conditional Formatting, and more. Unlike file-parser libraries, it drives Excel through its official COM API, so PivotTables, macros, charts, the Data Model and workbook formatting are preserved. Windows-only, requires Microsoft Excel desktop application (2016 or later). Based on ExcelMcp by Stefan Broenner (MIT).",
+  "author": {
+    "name": "jyyj",
+    "url": "https://github.com/Asaceoo"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Asaceoo/Execl-mcp"
+  },
+  "homepage": "https://github.com/Asaceoo/Execl-mcp",
+  "documentation": "https://github.com/Asaceoo/Execl-mcp",
+  "support": "https://github.com/Asaceoo/Execl-mcp/issues",
+  "icon": "icon-512.png",
+  "license": "MIT",
+  "privacy_policies": ["https://github.com/Asaceoo/Execl-mcp"],
+  "keywords": [
+    "excel",
+    "office",
+    "spreadsheet",
+    "automation",
+    "power query",
+    "m language",
+    "dax",
+    "data model",
+    "power pivot",
+    "vba",
+    "macro",
+    "table",
+    "data analysis",
+    "pivot table"
+  ],
+  "server": {
+    "type": "binary",
+    "entry_point": "server/excel-mcp-server",
+    "mcp_config": {
+      "command": "${__dirname}/server/excel-mcp-server",
+      "args": [],
+      "env": {}
+    }
+  },
+  "tools_generated": true,
+  "prompts_generated": true,
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": ["win32"]
+  }
+}
