@@ -2,6 +2,7 @@
 
 **通过 MCP（Model Context Protocol）协议驱动真实 Microsoft Excel 的本地增强版 ExcelMcp。**
 <img width="1708" height="1603" alt="29fda51ddc867cd3" src="https://github.com/user-attachments/assets/0ff48468-e2d8-444a-9e8b-6cb15873ea78" />
+<img width="1333" height="1160" alt="5367167af0675e55" src="https://github.com/user-attachments/assets/be8b52bd-1987-461a-aed6-f0ec23ba8334" />
 
 
 ## 文档
