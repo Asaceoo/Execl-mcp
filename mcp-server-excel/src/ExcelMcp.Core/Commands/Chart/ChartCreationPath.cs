@@ -45,14 +45,6 @@ internal static class ChartCreationPath
     /// <summary>Chart types that require the stock-switch path.</summary>
     private static readonly HashSet<int> StockCodes = new() { 88, 89, 90, 91 };
 
-    /// <summary>True when the type needs its data attached series by series.</summary>
-    internal static bool NeedsSeriesAttach(ChartType chartType) =>
-        SeriesAttachCodes.Contains((int)chartType);
-
-    /// <summary>True when the type must be created as a column chart and switched afterwards.</summary>
-    internal static bool IsStockChart(ChartType chartType) =>
-        StockCodes.Contains((int)chartType);
-
     /// <summary>
     /// Creates the chart shape and attaches <paramref name="sourceRange"/> using the path that
     /// matches <paramref name="chartType"/>. Caller owns the returned shape.
@@ -76,13 +68,34 @@ internal static class ChartCreationPath
                 dynamic scaffoldChart = stockShape.Chart;
                 // PlotBy must be explicit: with it omitted, AddChart auto-fills the scaffold from
                 // the sheet's whole current region first, and SetSourceData(range) then leaves that
-                // region's series count in place — the ChartType switch below rejects stock charts
+                // region's series count in place - the ChartType switch below rejects stock charts
                 // whose series count does not match the variant (HLC=3, OHLC/VHLC=4, VOHLC=5).
                 // Passing xlColumns makes SetSourceData authoritative, so the requested range wins.
                 scaffoldChart.SetSourceData(sourceRange, PlotByColumns);
                 scaffoldChart.ChartType = code;
                 ComUtilities.Release(ref scaffoldChart!);
                 return stockShape;
+            }
+            catch (COMException ex) when (IsStockShapeRefusal(ex))
+            {
+                // Without this the caller receives a bare 0xB0D7018E, which names neither the chart
+                // type nor the column-count rule - the exact error that took a bisect to diagnose.
+                TryDeleteShape(stockShape);
+                throw new InvalidOperationException(
+                    $"Excel refused to convert the scaffold chart into {chartType} "
+                    + $"(COM 0x{ex.HResult:X8}). A stock chart takes exactly one value column per "
+                    + "series and no separate category column: StockHLC needs 3 columns, "
+                    + "StockOHLC and StockVHLC need 4, StockVOHLC needs 5. "
+                    + ColumnCountPhrase(sourceRange), ex);
+            }
+            catch (COMException ex)
+            {
+                // Different COM failure on the same branch: still name the operation and carry the
+                // code through, but do not blame the column rule when the evidence does not say so.
+                TryDeleteShape(stockShape);
+                throw new InvalidOperationException(
+                    $"Excel refused to build the {chartType} scaffold (COM 0x{ex.HResult:X8}). "
+                    + ColumnCountPhrase(sourceRange), ex);
             }
             catch
             {
@@ -120,6 +133,37 @@ internal static class ChartCreationPath
         {
             TryDeleteShape(shape);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// The Excel-internal scodes raised when the scaffold's series layout does not match the
+    /// requested stock variant. Observed on Excel 16.0 build 20326: 0xB0D7018E (HLC fed too many
+    /// columns), 0xB0D70190 and 0xB0D70191 (neighbouring variants).
+    ///
+    /// The generic 0x800A03EC is deliberately NOT included: on this branch it can also mean an
+    /// unusable source range, and blaming the column rule for that would be a wrong claim.
+    /// </summary>
+    private static bool IsStockShapeRefusal(COMException ex) =>
+        ex.HResult is unchecked((int)0xB0D7018E)
+            or unchecked((int)0xB0D70190)
+            or unchecked((int)0xB0D70191);
+
+    /// <summary>
+    /// Reports how many columns the source range really has, so a column-count refusal carries the
+    /// number the caller needs to act on. A read failure degrades to a sentence, never to a wrong count.
+    /// </summary>
+    private static string ColumnCountPhrase(dynamic sourceRange)
+    {
+        try
+        {
+            int columns = Convert.ToInt32(
+                sourceRange.Columns.Count, System.Globalization.CultureInfo.InvariantCulture);
+            return $"The supplied range has {columns} column(s).";
+        }
+        catch (COMException)
+        {
+            return "The supplied range's column count could not be read.";
         }
     }
 
@@ -195,7 +239,7 @@ internal static class ChartCreationPath
                 "Modern charts need at least one header row (or one category row) plus data rows.");
         }
 
-        bool hasHeader = IsTextValue2(sourceRange.Cells[1, 1].Value2);
+        bool hasHeader = IsText(sourceRange.Cells[1, 1].Value2);
 
         // First row is a header only when the first cell is text; otherwise all rows carry data.
         int firstDataOffset = hasHeader ? 2 : 1;
@@ -285,8 +329,6 @@ internal static class ChartCreationPath
             ComUtilities.Release(ref worksheet!);
         }
     }
-
-    private static bool IsTextValue2(object? value) => IsText(value);
 
     private static bool IsText(object? value) =>
         value is string text && !string.IsNullOrWhiteSpace(text);

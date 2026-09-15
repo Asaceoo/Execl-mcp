@@ -183,6 +183,25 @@ public class Program
                     2. Pass that ID as session_id in the arguments of ALL subsequent tool calls
                     3. file(action:'close', session_id:the ID, save:true/false) ONLY when completely done
 
+                    LIST PARAMETERS - two wire formats, the parameter description states which applies:
+                    - A JSON array INSIDE A STRING, e.g. pivot_table_names:'["PivotA","PivotB"]'.
+                      This applies to: slicer pivot_table_names / selected_items,
+                      pivottable_field selected_values / item_names, table_column values.
+                      Sending a native JSON array here is rejected.
+                    - A NATIVE JSON array, e.g. range_format range_addresses:["A1","B2"].
+                      This applies to: range values / formulas / formats, table rows, vba parameters,
+                      analysis values, range_edit sort_columns, table_column sort_columns.
+
+                    SLICER MULTI-TABLE LINKAGE (make one slicer filter several PivotTables):
+                    Excel only lets a slicer drive PivotTables that share ONE PivotCache, and it
+                    reports a violation as an unexplained COM error. Build it in three steps:
+                    1. pivottable(action:'create') with share_cache_from set to a PivotTable that is
+                       already on the slicer - repeat for every PivotTable that must join.
+                    2. slicer(action:'create-slicer') on the first of them.
+                    3. slicer(action:'connect-pivots', slicer_name:..., pivot_table_names:'["..."]')
+                       to attach the rest. disconnect-pivots removes connections; a slicer always keeps
+                       at least one, and list-slicers reports connectedPivotTables.
+
                     CALCULATION MODE (Performance Optimization):
                     - Use calculation_mode for bulk write operations (10+ cells with values or formulas).
                     - Workflow: set-mode(manual) → perform all writes → calculate(scope: workbook) → set-mode(automatic).
@@ -197,7 +216,7 @@ public class Program
 
                     SHOW EXCEL — "Agent Mode" (hero feature):
                     - Default is show:false (hidden) — but ASK the user before starting multi-step tasks
-                    - Excel MCP supports "Agent Mode": users watch AI work in Excel in real-time
+                    - jyyj-mcp supports "Agent Mode": users watch AI work in Excel in real-time
                     - When starting a task, present two clear action card choices:
                       (1) "Watch me work" — Show Excel side-by-side so you see every change live. Slightly slower because Excel renders each update.
                       (2) "Work in background" — Keep Excel hidden for maximum speed. You won't see changes until done, but operations complete faster.

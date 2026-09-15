@@ -16,7 +16,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// with data and other charts. Warnings are returned in the result message if collisions are detected.
 /// Always verify layout with screenshot(capture) and an explicit range that includes the chart.
 ///
-/// CHART TYPES: 70+ types available including Column, Line, Pie, Bar, Area, XY Scatter.
+/// CHART TYPES: 84 types are enumerable and 37 were verified to create successfully on Excel 16.0.
+/// A type Excel cannot honour fails loudly (see ChartCreationPath) instead of silently downgrading.
 ///
 /// CREATE OPTIONS:
 /// - create-from-range: Create from cell range (e.g., 'A1:D10')
@@ -27,7 +28,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// </summary>
 [ServiceCategory("chart", "Chart")]
 [McpTool("chart", Title = "Chart Operations", Destructive = true, Category = "analysis",
-    Description = "Chart lifecycle - create, read, move, and delete embedded charts. POSITIONING: targetRange='F2:K15' (PREFERRED, cell-relative) or left/top (points, 72pts=1in) or OMIT BOTH for auto-positioning below content. COLLISION DETECTION: Automatically warns if chart overlaps data or other charts. CHART TYPES: 70+ types (ColumnClustered, Line, Pie, Bar, Area, XYScatter, etc.). CREATE: create-from-range (cell range), create-from-table (Excel Table), create-from-pivottable (verified live PivotChart; fails rather than returning a static chart). Use chart_config for series, titles, legends, and styling.")]
+    Description = "Chart lifecycle - create, read, move, and delete embedded charts. POSITIONING: targetRange='F2:K15' (PREFERRED, cell-relative) or left/top (points, 72pts=1in) or OMIT BOTH for auto-positioning below content. COLLISION DETECTION: Automatically warns if chart overlaps data or other charts. CHART TYPES: 84 types are enumerable and 37 are verified to work (ColumnClustered, Line, Pie, Bar, Area, XYScatter, StockHLC/OHLC/VHLC/VOHLC, Treemap, Waterfall, Funnel, Pareto, Histogram, BoxWhisker, RegionMap, ...). An unsupported type fails with the list of legal values and never silently changes type. CREATE: create-from-range (cell range), create-from-table (Excel Table), create-from-pivottable (verified live PivotChart; fails rather than returning a static chart). Use chart_config for series, titles, legends, and styling.")]
 public interface IChartCommands
 {
     // === LIFECYCLE OPERATIONS ===

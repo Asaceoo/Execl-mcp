@@ -2,17 +2,21 @@
 
   <PropertyGroup>
     <!-- Common properties for all projects -->
-    <!-- jyyj-mcp 助手: localised build of ExcelMcp, tracking upstream 2.0.8.
-         Local patches on top of upstream: slicer multi-PivotTable linkage (pivottable
-         share_cache_from, slicer connect-pivots / disconnect-pivots) and the chart creation
-         path fixes (ChartCreationPath - modern + stock charts). The pre-release suffix
-         "jyyj.<n>" marks this downstream line so it can never be confused with any upstream
-         2.0.9. Numeric Assembly/File versions stay 2.0.8.0.
-         <Version> below is the single source of truth for that suffix.
-         Bumped automatically by release.sh -> tools/pack.py bump; do not edit by hand. -->
-    <Version>2.0.8-jyyj.1</Version>
-    <AssemblyVersion>2.0.8.0</AssemblyVersion>
-    <FileVersion>2.0.8.0</FileVersion>
+    <!-- jyyj-mcp 助手: localised build of ExcelMcp, tracking upstream 2.0.8, hardened by the
+         3.0.0.0 adversarial-review round. Local patches on top of upstream: slicer
+         multi-PivotTable linkage (pivottable share_cache_from, slicer connect-pivots /
+         disconnect-pivots) and the chart creation path fixes (ChartCreationPath - modern +
+         stock charts).
+         Versioning: a plain four-part version. <Version> below is the single source of truth and
+         packaging bumps it through tools/pack.py bump, which increments the 4th component
+         (3.0.0.0 -> 3.0.0.1), so every artefact carries a version suffix.
+         AssemblyVersion / FileVersion are pinned on purpose: they form the assembly identity, so
+         a rebuild of the same source keeps a stable identity even though the package label moved.
+         This is why MCP serverInfo.version reports 3.0.0.0 while the CLI version banner prints the
+         package label. Verify the arithmetic any time with: python tools/pack.py selftest -->
+    <Version>3.0.0.0</Version>
+    <AssemblyVersion>3.0.0.0</AssemblyVersion>
+    <FileVersion>3.0.0.0</FileVersion>
     <!-- Upstream copyright is retained in full: this tree redistributes MIT-licensed code
          from Stefan Broenner, so the original notice must stay. Our own attribution is added
          alongside it rather than replacing it. -->

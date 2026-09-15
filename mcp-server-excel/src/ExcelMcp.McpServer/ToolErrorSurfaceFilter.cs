@@ -37,7 +37,7 @@ internal static class ToolErrorSurfaceFilter
             {
                 var tool = (request.MatchedPrimitive as McpServerTool)?.ProtocolTool;
                 var detail = DescribeFailure(ex, request, tool);
-                Console.Error.WriteLine($"[ExcelMcp] tools/call rejected: {detail}");
+                Console.Error.WriteLine($"[jyyj-mcp] tools/call rejected: {detail}");
 
                 var payload = ExcelToolsBase.SerializeToolError(
                     tool?.Name ?? "tools/call",
@@ -64,19 +64,33 @@ internal static class ToolErrorSurfaceFilter
         builder.Append(' ');
         builder.Append(FlattenMessages(exception));
 
+        // The shape remedy goes FIRST, ahead of the long "accepted arguments" list. It is the only
+        // part that lets the caller fix the call in one round trip, and every consumer that caps
+        // tool output - clients, terminals, log lines, this repo's own edge-case probe - keeps the
+        // head of the string, not the tail. With the remedy last, a 400-character cap silently ate
+        // exactly the sentence that mattered, which is how the defect was found.
+        //
+        // Naming the shape problem is what turns this class of failure into a one-shot fix: the
+        // binder's own message reports "Path: $" and never says which argument, or which of the two
+        // list wire formats the tool wanted.
+        foreach (string remedy in ShapeMismatches(request, tool))
+        {
+            builder.Append(' ').Append(remedy);
+        }
+
         var accepted = AcceptedArguments(tool);
         var unexpected = UnexpectedArguments(request, tool);
         if (unexpected.Count > 0)
         {
-            builder.Append(". Unexpected argument(s): ").Append(string.Join(", ", unexpected));
+            builder.Append(" Unexpected argument(s): ").Append(string.Join(", ", unexpected)).Append('.');
         }
 
         if (accepted.Count > 0)
         {
-            builder.Append(". Accepted argument(s): ").Append(string.Join(", ", accepted));
+            builder.Append(" Accepted argument(s): ").Append(string.Join(", ", accepted)).Append('.');
         }
 
-        builder.Append(". Re-send the call with the accepted argument names.");
+        builder.Append(" Re-send the call with the accepted argument names.");
         return builder.ToString();
     }
 
@@ -141,5 +155,81 @@ internal static class ToolErrorSurfaceFilter
         }
 
         return unexpected;
+    }
+
+    /// <summary>
+    /// Arguments whose JSON shape contradicts the shape their tool declared.
+    ///
+    /// The surface uses two wire formats for "list of strings": some parameters take a JSON array
+    /// inside a string (generated from <c>List&lt;string&gt;</c>) and others take a native JSON array
+    /// (generated from <c>string[]</c>). The SDK binder reports a mismatch as "The JSON value could
+    /// not be converted to System.String. Path: $" - which names neither the argument nor the fix.
+    /// Comparing what arrived against what the schema declares produces a message the caller can act
+    /// on without a second round trip.
+    /// </summary>
+    private static List<string> ShapeMismatches(
+        RequestContext<CallToolRequestParams> request,
+        Tool? tool)
+    {
+        var remedies = new List<string>();
+        if (request.Params?.Arguments is not { } arguments || tool is null)
+        {
+            return remedies;
+        }
+
+        var declaredTypes = DeclaredTypes(tool);
+        if (declaredTypes.Count == 0)
+        {
+            return remedies;
+        }
+
+        foreach (var argument in arguments)
+        {
+            if (!declaredTypes.TryGetValue(argument.Key, out var declaredType))
+            {
+                continue;
+            }
+
+            if (argument.Value.ValueKind == JsonValueKind.Array && declaredType == "string")
+            {
+                remedies.Add(
+                    $"Argument '{argument.Key}' was sent as a JSON array, but this tool declares it as a "
+                    + "string that carries a JSON array - send it quoted, for example "
+                    + $"\"{argument.Key}\":\"[\\\"value1\\\",\\\"value2\\\"]\".");
+            }
+            else if (argument.Value.ValueKind == JsonValueKind.String && declaredType == "array")
+            {
+                remedies.Add(
+                    $"Argument '{argument.Key}' was sent as a quoted string, but this tool declares it "
+                    + "as a native JSON array - send it unquoted, for example "
+                    + $"\"{argument.Key}\":[\"value1\",\"value2\"].");
+            }
+        }
+
+        return remedies;
+    }
+
+    /// <summary>Declared JSON type of every argument the tool advertises, keyed by argument name.</summary>
+    private static Dictionary<string, string> DeclaredTypes(Tool? tool)
+    {
+        var types = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (tool?.InputSchema.ValueKind != JsonValueKind.Object ||
+            !tool.InputSchema.TryGetProperty("properties", out var properties) ||
+            properties.ValueKind != JsonValueKind.Object)
+        {
+            return types;
+        }
+
+        foreach (var property in properties.EnumerateObject())
+        {
+            if (property.Value.ValueKind == JsonValueKind.Object &&
+                property.Value.TryGetProperty("type", out var declaredType) &&
+                declaredType.ValueKind == JsonValueKind.String)
+            {
+                types[property.Name] = declaredType.GetString() ?? string.Empty;
+            }
+        }
+
+        return types;
     }
 }

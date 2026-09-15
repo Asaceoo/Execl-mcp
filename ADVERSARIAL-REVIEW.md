@@ -133,3 +133,60 @@
 | F5-9 复验 | — | 错误透传修复后 | 探针对非法参数已能看到「Tool 'file' rejected the arguments before execution…」级别的具体原因，不再是统一泛化文案 | **闭环** |
 
 **图表能力终态（部署版 v2.0.8-slicerlink.5 探针 62/64）**：BASIC 18/18、3D 4/4、SHAPES 3/3、STOCK 4/4、MODERN 8/9（旭日图为本机 COM 限制）、CONFIG 17/17、DASHBOARD 8/9（截图需 `show:true` 前台会话）。**可用图表 25 → 37 种**。
+
+---
+
+## F7 追加（v3.0.0.0 轮：三视角复审 + 工具闭环取证）
+
+本轮仍按三视角展开（工具实现者 / 审查者 / AI 使用方），**每个结论都由真机或工具输出取证**，
+不采信"读源码觉得没问题"。版本推进到 **3.0.0.0**（四段版本号）。
+
+### 复审发现与处置
+
+| 编号 | 视角 | 严重度 | 问题 | 证据 | 处置 |
+|---|---|---|---|---|---|
+| **F7-1** | 审查者 | **高** | **本仓库当前源码树编译不过**：`ChartCreationPath.cs` 调用了 `IsStockShapeRefusal(...)` 与 `ColumnCountPhrase(...)`，但这两个方法**在文件中不存在**（上一轮编辑只写入调用点与辅助函数体，未定义方法本身）。改动晚于上一次构建，因此"上一个产物是好的"掩盖了这个状态 | `grep` 全文只有第 79/88 行两处**调用**、无定义；`release.sh` 重跑构建是唯一能暴露它的动作 | **已修**：补齐 `IsStockShapeRefusal`（匹配 `0xB0D7018E` / `0xB0D70190` / `0xB0D70191`）与 `ColumnCountPhrase`。构建复验 **0 警告 0 错误** |
+| **F7-2** | 工具实现者 | 中 | 股价图列数不匹配时只抛**裸 COM 码**：`COMException: 0xB0D7018E`——既没说是哪个图表类型，也没说列数规则。这正是当初定这个坑要花一次 bisect 的原因 | `tools/probe_edge_cases.py` 的 `CH-STOCK-WRONGCOLS`：`observed: 'COMException: 0xB0D7018E'`，期望短语 `stock\|series` 缺席 → 判 FAIL | **已修**：分级错误文案。命中形状拒绝码 → 说明"该变体需要几列、你给了几列"；其他 COM 失败 → 只报操作与码，**不把列数规则扣到无证据的失败上**。对 `0x800A03EC` 刻意不匹配，因为该分支上它也可能是"源区域不可用" |
+| **F7-3** | AI 使用方 | 中 | **可操作的补救提示排在长列表之后**：`ToolErrorSurfaceFilter` 把"参数形状写错了、应该怎么改"追加在 `Accepted argument(s): …`（11 个参数名）**之后**，实测落在第 437 字符；而客户端输出上限（本仓库探针为 400）恰好把它切掉 → **最有用的一句话最先被丢弃** | 直接 stdio JSON-RPC 取证：完整错误文本 674 字符，`remedy position: 270`（修复前 >437）、`accepted-args position: 437` | **已修**：补救提示**前移到失败句之后**、参数列表之前。这条同时解释了一个假象——探针此前报"提示缺失"，实际是**截断**被读成了**缺失** |
+| **F7-4** | 审查者 | 低 | 诊断工具自身的 400 字符上限会制造假阴性 | `tools/demo_slicer_link.py` 两处 `[:400]`、`tools/probe_edge_cases.py` 一处 `[:400]` | **已修**：统一放宽到 **1200**，并在注释里写明"截断曾被读成缺失" |
+| **F7-5** | AI 使用方 | 低 | **README 旗舰示例有三处错误**：`pivottable(action="create", …)` 的动作不存在（真实动作是 `create-from-range` / `create-from-table` / `create-from-datamodel`）；`source_range_address` 不是该工具的参数（真实是 `source_sheet` + `source_range`）；缺 `destination_sheet` / `destination_cell` | schema 导出：`pivottable` 的 action enum 里没有 `create`，参数表里没有 `source_range_address` | **已修**：示例改为可直接运行的真实调用，并补一条"动作名与参数名"提示，指向用户手册速查表 |
+| **F7-6** | 审查者 | 低 | 死代码：`ChartCreationPath.NeedsSeriesAttach` / `IsStockChart` 声明后**零引用**。因为成员是 `internal`，编译器不告警，只能靠人工或审查发现 | 全文 `grep` 只有定义、无调用；无 `CS0169`/`CS0414` 告警 | **已修**：删除；同时删掉冗余包装 `IsTextValue2`（直接调 `IsText`） |
+| **F7-7** | AI 使用方 | 低 | `screenshot` 工具的三个参数（`sheet_name` / `range_address` / `quality`）**没有 `[Description]`**——模型不知道该填什么 | `tools/audit_schema.py` 报 3 个参数缺描述 | **已修**：补齐 `[Description]`。复审后 `audit_schema.py` 报 **FINDINGS: none** |
+| **F7-8** | 审查者 | 低 | 改名残留：`ToolErrorSurfaceFilter.cs` 与 `ExcelToolsBase.cs` 的日志前缀仍是 `[ExcelMcp]`，与项目名 `jyyj-mcp` 不一致 | 全文 `grep "\[ExcelMcp\]"` | **已修**：统一为 `[jyyj-mcp]` |
+| **F7-9** | AI 使用方 | 低 | `chart` 工具描述写 "70+ types"，与实际不符（枚举 84、真机可用 37） | 工具描述文本 | **已修**：改为 "84 types are enumerable and 37 are verified to work (…) after the local creation-path patch" |
+| **F7-10** | 工具实现者 | 中 | 图表数据源地址**未转义工作表名单引号**：`$"'{sheetName}'!{range}"`。表名含 `'`（如 `O'Brien`）时抛 `0x800A03EC`。Excel 规则是**单引号加倍**（`'O''Brien'`） | `CH-QUOTE-APOSTROPHE` 用例：修复前 `COMException 0x800A03EC`；修复后 `success`，且 `With Space` / `Plain` 两个控制组仍通过 | **已修**：抽出共享工具 `Core/Utilities/SheetReference.cs`（`QuoteSheetName` + `BuildRangeReference`），配 `SheetReferenceTests` 单测（Plain / With Space / `O'Brien` / `'Quoted'` / `a'b'c`） |
+| **F7-11** | — | 低 | 项目记忆 `MEMORY.md` 超过注入上限（18,059 B）被系统截断，导致关键约束进入不了上下文 | 注入时的 `ACTION REQUIRED` 提示 | **已修**：合并去重重写为约 6 KB，约束条目按"违反必踩坑"排序保留 |
+
+### 本轮验证结果（全部为工具实测输出）
+
+| 验证项 | 命令 | 结果 |
+|---|---|---|
+| 构建 | `bash release.sh --no-bump` | **0 警告 / 0 错误**（两个项目） |
+| 部署 | 同上 | **139 文件**（覆盖式复制，无递归删除） |
+| 打包 + 自校验 | 同上 | `jyyj-mcp-3.0.0.0-win-x64.zip`（7,382,504 B）；`version check: jyyj-mcp 助手 v3.0.0.0` |
+| MCP schema 审计 | `python tools/audit_schema.py --json _demo/schema-audit.json` | 31 工具 / 328 动作 / 534 参数，**命名 534/534 snake_case**；错误可操作性 4/4 OK；**FINDINGS: none** |
+| **边界探针** | `python tools/probe_edge_cases.py` | **15/15 matched expectation**（修复前 13/15；两个 FAIL 分别为 F7-2 真缺陷与 F7-3 截断假象） |
+| 文档计数守卫 | `python tools/check_doc_counts.py` | **PASS**——15 条标题 + 工具面交叉校验一致（31 工具 / 328 操作） |
+| 分片集成回归（v.5 基线） | `bash tools/run_regression_v5.sh` | **148 用例全过**：A=50 / B=15 / C=36 / D=14 / E=33；E 片一次瞬态 COM 失败后自动复跑通过 |
+
+### 本轮固化的两条工程原则
+
+**① 错误文本里，可操作的补救必须排在最前。**
+F7-3 的本质不是"少了一句话"，而是**排序错了**。任何"先铺一堆上下文、最后才说要怎么改"的错误消息，
+在真实链路上（客户端截断、终端滚动、日志行、模型上下文预算）都会退化成不可用。
+诊断细节应该排在补救之后，因为细节只在人要看的时候才有价值，补救是每次都要用的。
+
+**② 中途编辑必须立刻过一遍编译。**
+F7-1 的成因是"写入调用点"与"写入方法定义"分成了两次编辑，中间产物不可编译，
+而两次构建之间没有人碰过它，于是坏状态静默存活。
+规则：**任何跨文件/跨方法的改动，落盘后第一件事是构建**，不要等"下一轮统一验证"。
+
+### 迭代轨迹（三视角 → 收敛）
+
+```
+视角① 工具实现者 ─┐
+视角② 审查者     ─┼─► 12 项发现（含 2 项审查工具自身缺陷）─► 逐项修复 ─► 复验
+视角③ AI 使用方  ─┘                                              │
+                                                                 ▼
+                                          audit FINDINGS none · probe 15/15 · 计数 PASS · 回归 148/148
+```

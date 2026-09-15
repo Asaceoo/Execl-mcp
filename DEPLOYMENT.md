@@ -1,16 +1,18 @@
 # jyyj-mcp 助手 本地部署说明
 
-**版本**：jyyj-mcp 助手 **v2.0.8-jyyj.1**
+**版本**：jyyj-mcp 助手 **v3.0.0.0**（四段版本号）
 **基线**：上游 `sbroenne/mcp-server-excel` 2.0.8 + 本地补丁（切片器多透视表联动 + 图表创建路径修复 + 错误透传）
-**状态**：已构建、已通过对抗性审查、已真机验证、已部署
+**状态**：已构建、已通过三视角对抗性审查、已真机验证、已部署
 **部署日期**：2026-09-15
-**审查报告**：见 `ADVERSARIAL-REVIEW.md`（26 项问题、逐项取证与处置）
+**审查报告**：见 `ADVERSARIAL-REVIEW.md`（F1–F7 共 37 项问题、逐项取证与处置）
 
 > **版本号来源**：`mcp-server-excel/Directory.Build.props` 的 `<Version>` —— **单一来源**。
-> 打包时由 `release.sh` 自动递增，产物一律带版本号后缀，不产出无版本号文件。
-> `--version` 输出 `jyyj-mcp 助手 v2.0.8-jyyj.1`；MCP `initialize` 的 `serverInfo.version`
-> 报 `2.0.8.0`（数值型 `AssemblyVersion`，刻意保持不变），`serverInfo.name` 报 `jyyj-mcp`。
-> `jyyj` 为**下游构建标识**的预发布后缀，不会与上游将来真实的 `2.0.9` 混淆。
+> 打包时由 `release.sh` 自动递增（支持四段递增，如 `3.0.0.0` → `3.0.0.1`），
+> 产物一律带版本号后缀，不产出无版本号文件。
+> `--version` 输出 `jyyj-mcp 助手 v3.0.0.0`；MCP `initialize` 的 `serverInfo.version`
+> 同样报 `3.0.0.0`（`Directory.Build.props` 里 `<Version>` / `<AssemblyVersion>` / `<FileVersion>`
+> 三者同步，避免"横幅说 A、协议说 B"）。
+> 版本算术由 `python tools/pack.py selftest` 断言（含 `3.0.0.0` → `3.0.0.1` 等 5 个用例）。
 > **编码提示**：`--version` 横幅含中文，经 Windows 控制台代码页输出为 **GBK/cp936** 而非 UTF-8；
 > 消费该输出的脚本必须按 cp936 回退解码（`tools/pack.py` 的 `run_version_check` 已如此处理），
 > 否则会抛 `UnicodeDecodeError` 并让自校验静默拿到空串。
@@ -142,28 +144,31 @@ bash release.sh --test       # 额外跑核心测试套件
 
 ```
 > excel-mcp-bin\Sbroenne.ExcelMcp.McpServer.exe --version
-jyyj-mcp 助手 v2.0.8-jyyj.1
+jyyj-mcp 助手 v3.0.0.0
 ```
 
-MCP `initialize` 回读（`probe_mcp.py`）：`serverInfo: name=jyyj-mcp version=2.0.8.0`，`tools advertised: 31`。
+MCP `initialize` 回读（`tools/audit_schema.py`）：`serverInfo: name=jyyj-mcp version=3.0.0.0`，
+工具面 31 个工具 / 328 个动作 / 534 个参数。
 
 `dist/` 产物（由 `release.sh` 自动生成，zip 与 manifest 带版本号后缀）：
-`jyyj-mcp-2.0.8-jyyj.1-win-x64.zip`（7,379,189 B）、`jyyj-mcp-2.0.8-jyyj.1-manifest.json`
-（历史产物 `excel-mcp-2.0.8-slicerlink.*` 因改名而换了前缀，旧包保留在同目录，便于回滚比对）。
-`excel-mcp-bin/VERSION.txt` 与 `<Version>` 同源于
-`Directory.Build.props`。
+`jyyj-mcp-3.0.0.0-win-x64.zip`（7,382,504 B）、`jyyj-mcp-3.0.0.0-manifest.json`
+（历史产物 `excel-mcp-2.0.8-slicerlink.*` 与 `jyyj-mcp-2.0.8-jyyj.1` 保留在同目录，便于回滚比对）。
+`excel-mcp-bin/VERSION.txt` 与 `<Version>` 同源于 `Directory.Build.props`。
 
 **zip 是唯一可分发单元**，内含 `excel-mcp-bin/` 全量（server + CLI 两个入口及其 apphost 四件套）。
 **不再单独产出裸 `.exe`**：.NET apphost 只是加载器，脱离同目录的 `*.dll` / `*.deps.json` / `*.runtimeconfig.json`
 必然报 `The application to execute does not exist`（退出码 2147516570）——详见审查报告 **F5-7**。
 `pack.py` 用 `assert_bundle_runnable()` 守卫该不变式，并对 CLI 实跑 `--version` 冒烟。
 
-### 2. MCP 协议级（`probe_mcp.py`，stdio JSON-RPC）
+### 2. MCP 协议级（`probe_mcp.py` / `tools/audit_schema.py`，stdio JSON-RPC）
 
 | 方法 | 结果 |
 |---|---|
-| `initialize` | `name=excel-mcp`，`version=2.0.8.0` |
+| `initialize` | `name=jyyj-mcp`，`version=3.0.0.0` |
 | `tools/list` | **31 个工具**（数量未变，靠 action 扩展） |
+| 参数命名 | **534 / 534 全 snake_case**，无 camelCase 混用 |
+| 参数描述 | 无缺失（`screenshot` 的 3 个参数已补齐，见 F7-7）；`audit_schema.py` 报 **FINDINGS: none** |
+| 错误可操作性 | 4 / 4 探针 OK（缺 action、非法 enum、错参数名、未知工具均给出可执行信息） |
 | `slicer` 工具 | action 枚举 **10** 项，含 `connect-pivots` / `disconnect-pivots`；参数含 `slicer_name`、`pivot_table_names` |
 | `pivottable` 工具 | 参数含 `share_cache_from`；action 枚举 10 项 |
 
@@ -317,6 +322,9 @@ cp -r mcp-server-excel/src/ExcelMcp.McpServer/bin/Release/net10.0-windows/. exce
 
 ## 九、改名与开源发布（2.0.8-slicerlink.5 → 2.0.8-jyyj.1）
 
+> 本节记录**当时**的改名轮次，版本号的历史值（`2.0.8-jyyj.1`）保持原样不改，
+> 以便与当时的产物对得上。版本号后来演进为四段制 `3.0.0.0`，见 **第十节**。
+
 **项目名**：ExcelMcp 本地构建 → **jyyj-mcp 助手**
 **对外仓库**：https://github.com/Asaceoo/Execl-mcp
 
@@ -356,3 +364,68 @@ cp -r mcp-server-excel/src/ExcelMcp.McpServer/bin/Release/net10.0-windows/. exce
 | `McpToolSurfaceTests` | 5/5 通过（含 `--help` 横幅派生计数断言） |
 | 真机端到端探针 | 27 passed / 1 failed（唯一失败为旭日图这一已知 Excel 侧限制，工具如实报错） |
 | 分项 | MODERN 8/8、STOCK 4/4、READBACK 14/14、SCREENSHOT 1/1（1352×196px PNG） |
+
+---
+
+## 十、版本演进到四段制 3.0.0.0
+
+### 1. 为什么换版本号形态
+
+`2.0.8-jyyj.1` 这种"上游版本 + 预发布后缀"在语义上把本仓库绑死在上游的版本号上，
+而本仓库的改动面（新增多表联动动作、重写图表创建路径、新增错误透传层）已经超出"补丁"的范畴，
+继续用后缀会让 ① 排序混乱（`2.0.8-jyyj.10` < `2.0.8-jyyj.9` 的字符串序问题），
+② 与上游将来真实的 `2.0.9` 难以区分。改为**四段数字版本**：
+
+| 项 | 值 |
+|---|---|
+| `Directory.Build.props` → `<Version>` | `3.0.0.0` |
+| `<AssemblyVersion>` | `3.0.0.0`（与 `<Version>` 同步，避免协议回读与横幅不一致） |
+| `<FileVersion>` | `3.0.0.0` |
+| 产物 | `jyyj-mcp-3.0.0.0-win-x64.zip`、`jyyj-mcp-3.0.0.0-manifest.json` |
+
+`tools/pack.py` 的 `next_version` 支持四段递增（`3.0.0.0` → `3.0.0.1`），
+并新增 `selftest` 子命令断言 5 个版本算术用例（含 `.9 → .10` 这类进位边界）：
+
+```bash
+python tools/pack.py selftest     # 断言版本算术
+python tools/pack.py show         # 读当前版本
+python tools/pack.py bump         # 递增
+```
+
+> 坑：`Directory.Build.props` 是 **XML**，注释里不能出现 `--`
+> （写 `--version` 会触发 `MSB4024: XML comment cannot contain '--'`）。
+> 注释里引用命令请写成不带双横线的形式（如 `python tools/pack.py selftest`）。
+
+### 2. 本轮补丁增量（相对 2.0.8-jyyj.1）
+
+| 类别 | 内容 |
+|---|---|
+| 修正 | 股价图形状拒绝的**裸 COM 码** → 带图表类型与列数规则的可操作错误（F7-2） |
+| 修正 | 参数形状补救提示**位置前移**（长参数列表之后 → 失败句之后），避免被客户端的输出上限吃掉（F7-3） |
+| 修正 | 补齐 `ChartCreationPath` 缺失的 `IsStockShapeRefusal` / `ColumnCountPhrase`（F7-1） |
+| 修正 | 工作表名单引号转义：抽出 `Core/Utilities/SheetReference.cs` + `SheetReferenceTests` 单测（F7-10） |
+| 清理 | 死代码 `NeedsSeriesAttach` / `IsStockChart`、冗余包装 `IsTextValue2`（F7-6） |
+| 文档 | `screenshot` 三参数补 `[Description]`；`chart` 描述由 "70+ types" 改为 84 枚举 / 37 可用（F7-7、F7-9） |
+| 文档 | 新增 **`USER-GUIDE.md`**（用户手册）与 **`TECHNICAL-MANUAL.md`**（技术手册） |
+| 工具 | `tools/demo_slicer_link.py` / `tools/probe_edge_cases.py` 的输出上限 400 → 1200（F7-4） |
+
+### 3. 验证结果（3.0.0.0，全部为工具实测输出）
+
+| 验证项 | 命令 | 结果 |
+|---|---|---|
+| 构建 | `bash release.sh --no-bump` | **0 警告 0 错误** |
+| 部署 + 打包 + 自校验 | 同上 | 139 文件；`jyyj-mcp-3.0.0.0-win-x64.zip`（7,382,504 B）；`version check: jyyj-mcp 助手 v3.0.0.0` |
+| MCP schema 审计 | `python tools/audit_schema.py --json _demo/schema-audit.json` | 31 工具 / 328 动作 / 534 参数全 snake_case；**FINDINGS: none** |
+| 边界探针 | `python tools/probe_edge_cases.py` | **15/15 matched expectation** |
+| 文档计数守卫 | `python tools/check_doc_counts.py` | **PASS**（15 条标题 + 工具面交叉校验） |
+| 分片集成回归 | `bash tools/run_regression_v5.sh` | **148 用例全过**（A=50 / B=15 / C=36 / D=14 / E=33） |
+
+### 4. 文档结构（本版定型）
+
+| 文件 | 读者 | 职责 |
+|---|---|---|
+| `README.md` | 所有人 | 项目概览 + 文档索引 |
+| `USER-GUIDE.md` | 使用者 | 装、接、用、查 |
+| `TECHNICAL-MANUAL.md` | 维护者 | 架构、原理、实测事实、扩展、验证 |
+| `DEPLOYMENT.md`（本文件） | 部署者 | 版本、补丁表、配置、证据、重建 |
+| `ADVERSARIAL-REVIEW.md` | 维护者 | 问题清单与处置（F1–F7） |

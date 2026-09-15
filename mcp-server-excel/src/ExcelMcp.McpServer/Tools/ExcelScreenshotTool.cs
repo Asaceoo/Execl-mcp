@@ -39,8 +39,16 @@ public static class ExcelScreenshotTool
     public static CallToolResult ExcelScreenshot(
         [Description("The action to perform")] ScreenshotAction action,
         [Description("Session ID from file 'open' action")] string session_id,
+        [Description("Worksheet to capture. Omit to capture the active sheet. Required when the "
+            + "session has never shown a sheet, because the active sheet is whatever Excel last "
+            + "focused.")]
         [DefaultValue(null)] string? sheet_name,
+        [Description("Range to capture for action='capture', for example 'A1:F20'. Ignored by "
+            + "action='capture-sheet', which always captures the whole used area.")]
         [DefaultValue("A1:Z30")] string range_address,
+        [Description("Image quality. Medium (default): JPEG at 75% scale, roughly 4-8x smaller than "
+            + "High. High: PNG at full scale, use when the caller must read small text or fine "
+            + "formatting. Low: JPEG at 50% scale.")]
         [DefaultValue(ScreenshotQuality.Medium)] ScreenshotQuality quality,
         CancellationToken cancellationToken = default)
     {

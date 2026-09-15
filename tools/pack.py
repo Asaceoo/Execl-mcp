@@ -289,12 +289,42 @@ def collect(version: str) -> int:
     return 0
 
 
+def selftest() -> int:
+    """Assert the version arithmetic, including the four-part form used from 3.0.0.0 onwards.
+
+    The packaging step rewrites <Version> on every release, so a silent regression here would
+    publish a mislabelled artefact - a failure that no build error would catch.
+    """
+    cases = [
+        ("2.0.8", "2.0.9"),
+        ("2.0.8-jyyj.1", "2.0.8-jyyj.2"),
+        ("3.0.0.0", "3.0.0.1"),
+        ("3.0.0.9", "3.0.0.10"),
+        ("3.0.1.0", "3.0.1.1"),
+    ]
+    failures = [
+        f"  next_version({current!r}) = {next_version(current)!r}, expected {expected!r}"
+        for current, expected in cases
+        if next_version(current) != expected
+    ]
+    if failures:
+        print("FAILED - version arithmetic is wrong:", file=sys.stderr)
+        print("\n".join(failures), file=sys.stderr)
+        return 1
+
+    print(f"OK - {len(cases)} version-arithmetic cases; source version is {read_version()}")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print(__doc__, file=sys.stderr)
         return 2
 
     command = argv[1]
+
+    if command == "selftest":
+        return selftest()
 
     if command == "show":
         print(read_version())

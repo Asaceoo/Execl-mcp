@@ -116,12 +116,12 @@ class Server:
         if images:
             parsed["_images"] = images
         if result.get("result", {}).get("isError"):
-            raise DemoFailure(f"{tool} reported an error: {payload[:400]}")
+            raise DemoFailure(f"{tool} reported an error: {payload[:1200]}")
         # The tool's own payload also carries success/error; the MCP-level isError flag alone is
         # not enough, because COM failures come back as a normal result whose body says otherwise.
         if isinstance(parsed, dict) and parsed.get("success") is False:
             detail = parsed.get("errorMessage") or parsed.get("error") or payload
-            raise DemoFailure(f"{tool} returned success=false: {str(detail)[:400]}")
+            raise DemoFailure(f"{tool} returned success=false: {str(detail)[:1200]}")
         return parsed
 
     def stop(self) -> None:

@@ -11,9 +11,13 @@ import os
 import subprocess
 import sys
 
-EXE = r"D:\execl-mcp\excel-mcp-bin\Sbroenne.ExcelMcp.McpServer.exe"
+# Derived from this file's location so the probe runs in any checkout: release.sh deploys the
+# server to excel-mcp-bin/ beside this script. Override with EXCEL_MCP_BIN / EXCEL_MCP_DOTNET.
+ROOT = os.path.dirname(os.path.abspath(__file__))
+BIN = os.environ.get("EXCEL_MCP_BIN") or os.path.join(ROOT, "excel-mcp-bin")
+EXE = os.path.join(BIN, "Sbroenne.ExcelMcp.McpServer.exe")
 ENV = dict(os.environ)
-ENV["DOTNET_ROOT"] = r"D:\execl-mcp\.dotnet10"
+ENV["DOTNET_ROOT"] = os.environ.get("EXCEL_MCP_DOTNET") or os.path.join(ROOT, ".dotnet10")
 ENV["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
 
 

@@ -9,6 +9,15 @@
 > 与上游的关系：本仓库不是上游的官方分支，也不代表上游立场。
 > 上游版权声明已按 MIT 要求完整保留，详见 [`LICENSE`](LICENSE)。
 
+## 文档
+
+| 文档 | 读者 | 内容 |
+|---|---|---|
+| [**用户手册**](USER-GUIDE.md) | 使用者 | 安装、接入客户端、31 个工具的用法、两种列表参数格式、实战配方、错误排查表 |
+| [**技术手册**](TECHNICAL-MANUAL.md) | 维护者 / 二次开发者 | 分层架构、会话与 COM 层、工具面生成机制、五类补丁原理、实测事实集、验证体系 |
+| [部署手册](DEPLOYMENT.md) | 部署者 | 版本单一来源、补丁表、MCP 配置、验证证据、重建步骤 |
+| [对抗性审查报告](ADVERSARIAL-REVIEW.md) | 维护者 | 三视角问题清单 + 真机证据 + 处置 |
+
 ---
 
 ## 它是什么
@@ -113,16 +122,26 @@ MCP SDK 在**参数绑定阶段**抛出异常时不会进入工具内部的 catc
 
 ### 真实例子：一句 `slicer connect-pivots` 让一个切片器驱动多张透视表
 
+> ⚠️ **注意列表参数的写法**：`pivot_table_names` / `selected_items` 这类参数在 MCP 面上是
+> **"装 JSON 数组的字符串"**，不是原生数组。写成 `["Pivot2"]` 会被参数绑定拒绝；
+> 正确写法是 `'["Pivot2"]'`。详见 [用户手册的「两种列表线格式」](USER-GUIDE.md#7-两种列表线格式最容易踩的坑)。
+
 ```python
 # 1. 第二个透视表复用第一个的缓存 —— 这是"一个切片器驱动多表"的前提
-pivottable(action="create", session_id=sid, sheet_name="Pivot2",
-           source_range_address="Data!A1:D100",
+pivottable(action="create-from-range", session_id=sid,
+           pivot_table_name="Pivot2",
+           source_sheet="Data", source_range="A1:D100",
+           destination_sheet="PivotSheet", destination_cell="A3",
            share_cache_from="Pivot1")
 
-# 2. 把已有切片器接到第二个透视表上
+# 2. 把已有切片器接到第二个透视表上（列表参数要写成 JSON 字符串）
 slicer(action="connect-pivots", session_id=sid, slicer_name="区域",
-       pivot_table_names=["Pivot1", "Pivot2"])
+       pivot_table_names='["Pivot1", "Pivot2"]')
 ```
+
+> 注意 `pivottable` 没有 `create` 这个动作，创建走 `create-from-range` / `create-from-table` /
+> `create-from-datamodel`；参数名是 `source_sheet` + `source_range`，不是 `source_range_address`。
+> 完整动作表见 [用户手册的工具速查](USER-GUIDE.md#6-工具速查表31-个)。
 
 ---
 
@@ -167,10 +186,12 @@ bash release.sh --no-build   # 跳过编译，只重新部署与打包
 
 ```
 .
-├── README.md                  # 本文件
-├── LICENSE                    # MIT（上游原文 + 本仓库修改声明）
+├── README.md                  # 本文件：项目概览
+├── USER-GUIDE.md              # 用户手册：安装 / 接入 / 31 工具用法 / 配方 / 排查
+├── TECHNICAL-MANUAL.md        # 技术手册：架构 / COM 层 / 生成机制 / 实测事实 / 验证体系
 ├── DEPLOYMENT.md              # 部署手册：补丁表 / MCP 配置 / 验证证据 / 重建步骤
-├── ADVERSARIAL-REVIEW.md      # 对抗性审查报告：问题清单 + 真机证据 + 处置
+├── ADVERSARIAL-REVIEW.md      # 对抗性审查报告：三视角问题清单 + 真机证据 + 处置
+├── LICENSE                    # MIT（上游原文 + 本仓库修改声明）
 ├── build.sh / release.sh      # 构建与一键发布
 ├── probe_mcp.py               # stdio JSON-RPC 探针：校验已部署 server 的工具 schema
 ├── tools/                     # 探针、分片回归、打包脚本

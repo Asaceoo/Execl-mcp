@@ -3,6 +3,7 @@ using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
@@ -225,15 +226,31 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 }
 
                 // Resolve the source range first: which creation path applies depends on it.
-                // If sourceRangeAddress doesn't include a sheet name, prefix the target sheet.
-                // Sheet names with spaces or special characters must be quoted: 'Sheet Name'!A1:D6
+                // If sourceRangeAddress doesn't include a sheet name, prefix the target sheet and
+                // quote it, so an apostrophe in the name stays legal: 'O''Brien'!A1:D6
                 dynamic? sourceRangeObj = null;
                 try
                 {
                     string fullRangeAddress = sourceRangeAddress.Contains('!')
                         ? sourceRangeAddress
-                        : $"'{sheetName}'!{sourceRangeAddress}";
-                    sourceRangeObj = ctx.Book.Application.Range[fullRangeAddress];
+                        : SheetReference.BuildRangeReference(sheetName, sourceRangeAddress);
+
+                    // Resolving the address is a failure point in its own right: a missing sheet, a
+                    // typo or an unquotable name all make Excel raise a bare 0x800A03EC. The wrapper
+                    // below used to guard only CreateShape, so those failures reached the caller as a
+                    // raw COM error - which names neither the sheet nor the address.
+                    try
+                    {
+                        sourceRangeObj = ctx.Book.Application.Range[fullRangeAddress];
+                    }
+                    catch (System.Runtime.InteropServices.COMException ex)
+                        when (ex.HResult == unchecked((int)0x800A03EC))
+                    {
+                        throw new InvalidOperationException(
+                            $"Cannot resolve source range '{fullRangeAddress}' on sheet '{sheetName}'. " +
+                            "Check that the sheet exists and that the address is an A1-style range such " +
+                            "as A1:D20. Sheet names containing an apostrophe are quoted automatically.", ex);
+                    }
 
                     try
                     {

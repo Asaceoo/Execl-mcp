@@ -234,15 +234,15 @@ public static class ExcelToolsBase
             // Log COM exceptions to stderr for diagnostic capture
             if (ex is System.Runtime.InteropServices.COMException comEx)
             {
-                Console.Error.WriteLine($"[ExcelMcp] COM Exception in {toolName}/{actionName}: HResult=0x{comEx.HResult:X8}, Message={comEx.Message}");
+                Console.Error.WriteLine($"[jyyj-mcp] COM Exception in {toolName}/{actionName}: HResult=0x{comEx.HResult:X8}, Message={comEx.Message}");
                 if (ex.StackTrace != null)
                 {
-                    Console.Error.WriteLine($"[ExcelMcp] StackTrace: {ex.StackTrace[..Math.Min(500, ex.StackTrace.Length)]}");
+                    Console.Error.WriteLine($"[jyyj-mcp] StackTrace: {ex.StackTrace[..Math.Min(500, ex.StackTrace.Length)]}");
                 }
             }
             else if (ex.InnerException is System.Runtime.InteropServices.COMException innerComEx)
             {
-                Console.Error.WriteLine($"[ExcelMcp] Inner COM Exception in {toolName}/{actionName}: HResult=0x{innerComEx.HResult:X8}, Message={innerComEx.Message}");
+                Console.Error.WriteLine($"[jyyj-mcp] Inner COM Exception in {toolName}/{actionName}: HResult=0x{innerComEx.HResult:X8}, Message={innerComEx.Message}");
             }
 
             if (customHandler != null)
