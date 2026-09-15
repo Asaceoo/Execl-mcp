@@ -156,6 +156,7 @@
 | **F7-9** | AI 使用方 | 低 | `chart` 工具描述写 "70+ types"，与实际不符（枚举 84、真机可用 37） | 工具描述文本 | **已修**：改为 "84 types are enumerable and 37 are verified to work (…) after the local creation-path patch" |
 | **F7-10** | 工具实现者 | 中 | 图表数据源地址**未转义工作表名单引号**：`$"'{sheetName}'!{range}"`。表名含 `'`（如 `O'Brien`）时抛 `0x800A03EC`。Excel 规则是**单引号加倍**（`'O''Brien'`） | `CH-QUOTE-APOSTROPHE` 用例：修复前 `COMException 0x800A03EC`；修复后 `success`，且 `With Space` / `Plain` 两个控制组仍通过 | **已修**：抽出共享工具 `Core/Utilities/SheetReference.cs`（`QuoteSheetName` + `BuildRangeReference`），配 `SheetReferenceTests` 单测（Plain / With Space / `O'Brien` / `'Quoted'` / `a'b'c`） |
 | **F7-11** | — | 低 | 项目记忆 `MEMORY.md` 超过注入上限（18,059 B）被系统截断，导致关键约束进入不了上下文 | 注入时的 `ACTION REQUIRED` 提示 | **已修**：合并去重重写为约 6 KB，约束条目按"违反必踩坑"排序保留 |
+| **F7-12** | 审查者 | **中** | **发布工具让第二次发布永远无法进行**：`tools/publish.py` 的 `commit()` 无条件断言「HEAD 必须是根提交」，但 `git commit` 必然写入 parent。首次发布（暂存树全新 init）自然满足，**第二次起必然抛 `HEAD is not a root commit`**——守卫把正常迭代判定为异常，属"自我否定的守卫" | 实跑 `publish.py push -m "…"`：提交 `7feae16` **已成功创建**后守卫才抛错 → 证明断言与 `git commit` 的语义直接冲突 | **已修**：根提交要求收敛到**首次发布**（用 `rev-parse --verify --quiet HEAD` 判有无历史），后续发布正常追加子提交并打印其父提交；另把「树无变化」从报错改为 `--amend` 刷新提交信息（重复发布幂等） |
 
 ### 本轮验证结果（全部为工具实测输出）
 

@@ -254,11 +254,40 @@ def commit(dest: Path, message: str) -> str:
     # published repository silently ships fewer files than the source tree. `check()` compares the
     # index against the enumerated set afterwards, so forcing cannot let extras slip through.
     run(["git", "add", "-A", "-f"], cwd=dest, env=env)
+
+    # The root-commit requirement belongs to the FIRST publish only. A fresh staging tree must not
+    # inherit a history it never had - that is what the check was written for. Every later publish
+    # legitimately continues that root commit, and demanding rootness again made the second publish
+    # impossible: `git commit` always writes a parent, so the guard could only ever fire.
+    first_publish = (
+        run(["git", "rev-parse", "--verify", "--quiet", "HEAD"], cwd=dest, env=env, check=False)
+        .returncode != 0
+    )
+
+    # An unchanged tree is not an error: re-publishing the same content should be idempotent, not
+    # fail with git's "nothing to commit". Refresh the message on the existing commit instead.
+    staged_changes = run(
+        ["git", "diff", "--cached", "--quiet", "--exit-code"], cwd=dest, env=env, check=False
+    ).returncode != 0
+
+    if not staged_changes and not first_publish:
+        run(["git", "commit", "--amend", "-m", message], cwd=dest, env=env)
+        sha = git(["rev-parse", "HEAD"], dest, env).strip()
+        print(f"  tree unchanged; amended the message on {sha[:12]}")
+        return sha
+
     run(["git", "commit", "-m", message], cwd=dest, env=env)
-    parents = git(["cat-file", "-p", "HEAD"], dest, env).count("\nparent ")
-    if parents:
-        raise PublishError("HEAD is not a root commit - the publish history would carry a parent")
-    return git(["rev-parse", "HEAD"], dest, env).strip()
+    sha = git(["rev-parse", "HEAD"], dest, env).strip()
+
+    if first_publish:
+        parents = git(["cat-file", "-p", "HEAD"], dest, env).count("\nparent ")
+        if parents:
+            raise PublishError("the first publish commit is not a root commit")
+        print(f"  committed root commit {sha[:12]}")
+    else:
+        print(f"  committed {sha[:12]} on top of {git(['rev-parse', '--short', 'HEAD^'], dest, env).strip()}")
+
+    return sha
 
 
 def push(dest: Path, message: str | None, force: bool) -> None:
