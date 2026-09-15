@@ -295,11 +295,17 @@ def push(dest: Path, message: str | None, force: bool) -> None:
     if message:
         ensure_repo(dest, env)
         check(dest, stage(dest))
+        # commit() already reports what it did (root commit vs. child commit); saying "root commit"
+        # again here was a lie for every publish after the first one.
         sha = commit(dest, message)
-        print(f"  committed root commit {sha[:12]}")
     else:
         ensure_repo(dest, env)
-        if not (dest / ".git" / "HEAD").exists():
+        # `.git/HEAD` exists from `git init` onwards, so it cannot tell "no commit yet" apart from
+        # "nothing new to push". Ask git for a commit instead.
+        has_commit = run(
+            ["git", "rev-parse", "--verify", "--quiet", "HEAD"], cwd=dest, env=env, check=False
+        ).returncode == 0
+        if not has_commit:
             raise PublishError("nothing to push and no commit given; pass --message")
         sha = git(["rev-parse", "HEAD"], dest, env).strip()
         print(f"  pushing existing {sha[:12]}")
