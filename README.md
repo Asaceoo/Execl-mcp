@@ -1,6 +1,7 @@
 # jyyj-mcp 助手
 
 **通过 MCP（Model Context Protocol）协议驱动真实 Microsoft Excel 的本地增强版 ExcelMcp。**
+<img width="1708" height="1603" alt="29fda51ddc867cd3" src="https://github.com/user-attachments/assets/0ff48468-e2d8-444a-9e8b-6cb15873ea78" />
 
 
 ## 文档
