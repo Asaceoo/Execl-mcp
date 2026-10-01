@@ -465,23 +465,79 @@ vba(action="run", session_id=sid, procedure="Skin.Paint")
 内置样式共 12 种：`SlicerStyleLight1`–`SlicerStyleLight6`、`SlicerStyleDark1`–`SlicerStyleDark6`
 （本机实测 **12/12 全部可用**，且随保存持久化）。
 
-### 配方 6：分析工具
+### 配方 6：分析工具（What-If）
 
 ```python
-# 目标求解：让 A10 等于 1000，调整 B2
+# 单变量求解：让 C1 达到 200，反推 B1
+# 真实参数名是 formula_cell / goal / changing_cell
 analysis(action="goal-seek", session_id=sid, sheet_name="Model",
-         target_cell="A10", target_value=1000, changing_cell="B2")
+         formula_cell="C1", goal=200, changing_cell="B1")
 
-# 方案管理器
+# 方案管理器（changing_cells 是地址字符串，values 是原生数组）
 analysis(action="create-scenario", session_id=sid, sheet_name="Model",
-         scenario_name="乐观", changing_cells=["B2","B3"], values=[120, 90])
+         scenario_name="乐观", changing_cells="B2", values=[0.3])
+# 汇总报告会新建一张「方案摘要」工作表
 analysis(action="create-scenario-summary", session_id=sid,
-         sheet_name="Model", result_cell="A10", report_type="Summary")
+         sheet_name="Model", result_cells="C1")
 
-# 模拟运算表（双变量）
+# 模拟运算表：table_range 是必需参数
 analysis(action="create-data-table", session_id=sid, sheet_name="Model",
-         row_input_cell="B1", column_input_cell="B2", formula="=A10")
+         table_range="D1:E4", row_input_cell="B1", column_input_cell="A1")
 ```
+
+> 模拟运算表的**表头方向**容易记反：`row_input_cell` 被**第一行**的值替换，
+> `column_input_cell` 被**第一列**的值替换。左上角格子必须放引用结果的公式。
+> 以上四个调用均经真机验证（`tools/probe_analysis.py`，6/6 断言通过）。
+
+### 配方 7：统计分析与规划求解
+
+Analysis ToolPak 与 Solver **没有封装成动作**，但两者都做得到 —— 前者根本不需要加载项。
+
+**统计（描述统计 / 回归 / 相关 / t 检验 / 百分位 / 预测）** —— 用原生函数，真机实测 12/12 精确命中：
+
+```python
+# 一次写入一列统计公式，统一重算，再读回结果
+formulas = [["=AVERAGE(A2:A11)"], ["=STDEV.S(A2:A11)"], ["=MEDIAN(A2:A11)"],
+            ["=CORREL(A2:A11,B2:B11)"], ["=SLOPE(B2:B11,A2:A11)"],
+            ["=INTERCEPT(B2:B11,A2:A11)"], ["=RSQ(B2:B11,A2:A11)"],
+            ["=T.TEST(B2:B11,C2:C11,2,2)"], ["=PERCENTILE(A2:A11,0.75)"],
+            ["=FORECAST.LINEAR(11,B2:B11,A2:A11)"]]
+range(action="set-formulas", session_id=sid, sheet_name="Sheet1",
+      range_address="F1:F10", formulas=formulas)
+calculation_mode(action="calculate", session_id=sid, scope="workbook")
+range(action="get-values", session_id=sid, sheet_name="Sheet1",
+      range_address="F1:F10")
+```
+
+`LINEST` 可一次取出多元回归的完整统计量。注意 `T.TEST` 的 `type` 参数：
+`1` 是**成对**检验，两组差值恒定时其方差为 0 → `#DIV/0!`，此时改用 `2`。
+
+**规划求解（Solver）** —— 加载项随 Office 安装，用 `vba` 通道驱动（需 `.xlsm`）：
+
+```python
+vba(action="import", session_id=sid, module_name="SolverMod", vba_code='''
+Sub Solve()
+    Dim ai As AddIn, path As String
+    For Each ai In Application.AddIns
+        If InStr(UCase(ai.Name), "SOLVER") > 0 Then
+            ai.Installed = True
+            path = ai.FullName        ' 必须用完整路径，不能用文件名
+        End If
+    Next ai
+    Application.Run "'" & path & "'!SolverOk", "$C$17", 2, 0, "$C$14:$C$16"
+    Application.Run "'" & path & "'!SolverSolve", True
+    Application.Run "'" & path & "'!SolverFinish", 1
+End Sub
+''')
+vba(action="run", session_id=sid, procedure_name="SolverMod.Solve")
+```
+
+真机实测：解出 `[5.0, 7.0, 3.0]`，目标值 `6.5e-14`。两条**必须**遵守的细节：
+
+1. `Application.Run` 里的宏**必须用 `AddIn.FullName` 的完整路径**限定。写文件名（`SOLVER.XLAM!SolverSolve`）
+   会让 Excel 去 `Documents\` 找，随后所有调用**返回 0 却什么也不做** —— 零返回码在这里不代表成功。
+2. `SolverReset` 会报 `1004 不能设置类 DialogSheet 的 Focus 属性`，**这是无害的**：
+   它只是装饰性 UI 初始化，报着这个错求解照样收敛。
 
 ---
 

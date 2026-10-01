@@ -4,6 +4,12 @@
 <img width="1708" height="1603" alt="29fda51ddc867cd3" src="https://github.com/user-attachments/assets/0ff48468-e2d8-444a-9e8b-6cb15873ea78" />
 <img width="1333" height="1160" alt="5367167af0675e55" src="https://github.com/user-attachments/assets/be8b52bd-1987-461a-aed6-f0ec23ba8334" />
 
+上游项目：[`sbroenne/mcp-server-excel`](https://github.com/sbroenne/mcp-server-excel)（MIT，v2.0.8）。
+本仓库是它的**下游构建（downstream build）**：在完整保留上游能力的基础上，修掉了本机实测中发现的 5 类缺陷，
+并补上一套可复现的构建 / 发布 / 回归验证工具链。
+
+> 与上游的关系：本仓库不是上游的官方分支，也不代表上游立场。
+> 上游版权声明已按 MIT 要求完整保留，详见 [`LICENSE`](LICENSE)。
 
 ## 文档
 
@@ -12,6 +18,7 @@
 | [**用户手册**](USER-GUIDE.md) | 使用者 | 安装、接入客户端、31 个工具的用法、两种列表参数格式、实战配方、错误排查表 |
 | [**技术手册**](TECHNICAL-MANUAL.md) | 维护者 / 二次开发者 | 分层架构、会话与 COM 层、工具面生成机制、五类补丁原理、实测事实集、验证体系 |
 | [部署手册](DEPLOYMENT.md) | 部署者 | 版本单一来源、补丁表、MCP 配置、验证证据、重建步骤 |
+| [对抗性审查报告](ADVERSARIAL-REVIEW.md) | 维护者 | 三视角问题清单 + 真机证据 + 处置 |
 
 ---
 
@@ -79,7 +86,10 @@ MCP SDK 在**参数绑定阶段**抛出异常时不会进入工具内部的 catc
 | `tools/check_doc_counts.py` | 文档计数守卫（`scripts/check-doc-counts.ps1` 的跨平台复刻） |
 | `tools/gen_regression_shards.py` | 从权威测试清单生成分片，并**按 filter 包含语义**回算预期用例数 |
 | `tools/run_regression_v5.sh` | 分片回归运行器：汇总行断言 + 执行数断言 + 瞬态 COM 自动复跑 |
-| `tools/probe_*.py` | 真机探针：图表类型 / 现代图+股价图+截图 / 切片器皮肤 |
+| `tools/probe_edge_cases.py` | 边界用例收割器：15 个带期望值的用例（引用转义 / 图表类型 / 列数守卫 / 列表线格式 / 错误透传） |
+| `tools/probe_analysis.py` | `analysis` 工具契约探针：goal-seek / 场景管理器 / 模拟运算表（6/6 断言） |
+| `tools/probe_stats_paths.py` | 统计过程类三路径取证：原生函数 / Solver / Analysis ToolPak |
+| `tools/probe_chart_types.py` 等 | 真机探针：64 图 / 现代图+股价图+截图 / 切片器换肤 |
 
 ---
 
@@ -194,12 +204,7 @@ bash release.sh --no-build   # 跳过编译，只重新部署与打包
 ├── excel-mcp-bin/             # （部署目录，不入库）
 └── mcp-server-excel/          # 上游 v2.0.8 源码 + 本地补丁（含其自身 .gitignore）
 ```
-上游项目：[`sbroenne/mcp-server-excel`](https://github.com/sbroenne/mcp-server-excel)（MIT，v2.0.8）。
-本仓库是它的**下游构建（downstream build）**：在完整保留上游能力的基础上，修掉了本机实测中发现的 5 类缺陷，
-并补上一套可复现的构建 / 发布 / 回归验证工具链。
 
-> 与上游的关系：本仓库不是上游的官方分支，也不代表上游立场。
-> 上游版权声明已按 MIT 要求完整保留，详见 [`LICENSE`](LICENSE)。
 **关于 `mcp-server-excel/.github/workflows/`**：上游的 11 个 CI 工作流依赖其自托管 Windows runner、
 sealed release secrets 与 gh-pages / 插件市场发布目标，本仓库不具备这些条件。原样纳入会导致**每次推送都失败**
 并向仓库所有者发送失败通知，因此**有意排除**（已在 `.gitignore` 中显式注明），而不是悄悄删掉。

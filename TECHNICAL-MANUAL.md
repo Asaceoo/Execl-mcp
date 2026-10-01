@@ -406,6 +406,17 @@ catch (COMException ex) when (IsStockShapeRefusal(ex))
 | 日期分组字段名**随 Office 界面语言本地化** | 中文版生成 `天(Date)`/`月(Date)`/`年(Date)`，英文版为 `Days` 等。断言英文子串会在中文 Excel 上**必然假红** |
 | `PivotTable.Index` 之类标识**不能**当稳定 ID | 见上：判定同一性要靠内容比对 |
 
+### Office 加载项：`Application.Run` 的限定形式
+
+| 事实 | 含义 |
+|---|---|
+| `Application.Run "SOLVER.XLAM!宏"`（裸文件名）**不解析** | Excel 按自身搜索路径查找，得到 `…\Documents\SOLVER.XLAM` 并报 `1004`。**更危险的是随后 `SolverOk` / `SolverSolve` 仍返回 `0`** —— 零返回码在这里不代表成功，变量一个都没动 |
+| 正确形式：`AddIn.FullName` → `Application.Run "'" & full & "'!宏"` | 实测求解成功。路径形如 `…\Office16\Library\SOLVER\SOLVER.XLAM` |
+| `SolverReset` 报 `1004 不能设置类 DialogSheet 的 Focus 属性` | **无害**。装饰性 UI 初始化，与求解无关；它照旧报错而求解照旧收敛 |
+| 可见 / 隐藏会话**都能**求解 | 无头不是障碍。`show: true` 会让加载项更容易 `Installed=True`，但归因实验（隐藏 + 完整路径）证明真正的变量是**宏限定形式** |
+| `ATPVBAEN.XLAM` 的宏**取不到**（`DescriptiveStatistics` / `Regression` 三种限定形式均报「宏不可用」） | 其入口位于 VBA 工程**引用**之后，`vba` 工具只能导入模块代码、不能添加引用。功能由原生工作表函数原样覆盖 |
+| Solver 解是**迭代收敛值** | 判等要用求解器容差（`1e-6`），用精确函数的 `1e-9` 会误杀正确解 |
+
 ---
 
 ## 7. 构建与发布链路
