@@ -312,7 +312,24 @@ def selftest() -> int:
         print("\n".join(failures), file=sys.stderr)
         return 1
 
-    print(f"OK - {len(cases)} version-arithmetic cases; source version is {read_version()}")
+    # The version must have ONE source: Directory.Build.props pins <Version> and the other two
+    # tags must derive from it. Hard-coding AssemblyVersion/FileVersion split the identity the
+    # first time bump moved <Version> - serverInfo.version reported older than the CLI banner,
+    # and a doc claiming "the three tags move together" had only been true by coincidence.
+    props_text = (
+        (Path(__file__).resolve().parent.parent / "mcp-server-excel" / "Directory.Build.props")
+        .read_text(encoding="utf-8-sig")
+    )
+    for tag in ("AssemblyVersion", "FileVersion"):
+        derived = f"<{tag}>$(Version)</{tag}>"
+        if derived not in props_text:
+            failures.append(f"  Directory.Build.props: <{tag}> must derive as {derived!r}")
+    if failures:
+        print("FAILED - version source-of-truth is broken:", file=sys.stderr)
+        print("\n".join(failures), file=sys.stderr)
+        return 1
+
+    print(f"OK - {len(cases)} version-arithmetic cases + props derivation; source version is {read_version()}")
     return 0
 
 

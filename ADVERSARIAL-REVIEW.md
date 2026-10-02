@@ -261,3 +261,40 @@ F7-1 的成因是"写入调用点"与"写入方法定义"分成了两次编辑�
 先问三件事：① 有没有等效的原生函数（`set-formulas` 是万能出口）；② 有没有 VBA 通道；
 ③ 加载项是不是仅仅"没有对应 MCP 动作"而其实可被 `Application.Run` 调起。
 本轮就是漏了第 ③ 步 —— 而第 ① 步本来已足以推翻结论。
+
+---
+
+## F9 追加（v3.0.0.1 轮：版本源分裂 —— 恰好一致的文档是最危险的文档）
+
+**触发**：发布 v3.0.0.1 时按流程核对三处版本回读，发现 CLI `--version` 报 `3.0.0.1` 而
+MCP `initialize` 的 `serverInfo.version` 仍报 `3.0.0.0`。
+
+| 项 | 内容 |
+|---|---|
+| **现象** | `pack.py bump` 只递增 `<Version>`；`<AssemblyVersion>` / `<FileVersion>` 硬编码停留在 `3.0.0.0` |
+| **为何此前未发现** | 3.0.0.0 轮 `<Version>` 与 `<AssemblyVersion>` **数值恰好相同**（都是 3.0.0.0），DEPLOYMENT 写下的「三处同步 / serverInfo 同样报 X」当时**碰巧为真**；第一次 bump 就暴露了分裂 |
+| **根因** | props 注释声称 AssemblyVersion「pinned on purpose」（装配标识稳定），而 DEPLOYMENT 声称「三处同步」—— 两处文档自 3.0.0.0 起就互相矛盾，各自却都与当时的实测输出相容 |
+| **裁决** | 按项目规范「版本号单一来源、所有产物自动带版本」，采用**派生**：`<AssemblyVersion>$(Version)</AssemblyVersion>`、`<FileVersion>$(Version)</FileVersion>`。装配标识稳定性的收益对本项目不成立（非强签名共享组件），而版本可读性是硬需求 |
+| **处置** | props 改为派生（注释同步改写并记录教训）；`pack.py selftest` 新增 props 派生守卫；重建 3.0.0.1 后三处回读一致 |
+
+### 守卫与红测
+
+`pack.py selftest` 新增断言：props 中 `<AssemblyVersion>` / `<FileVersion>` 必须是 `$(Version)` 派生形式。
+按「守卫必须证明自己能红」原则做了红测——临时把 props 改回硬编码，selftest 以退出码 1 报
+`FAILED - version source-of-truth is broken`；恢复后 PASS。
+
+### 复验（重建 3.0.0.1 后）
+
+| 回读点 | 结果 |
+|---|---|
+| `--version` 横幅 | `jyyj-mcp 助手 v3.0.0.1` |
+| `serverInfo.version`（MCP initialize） | `3.0.0.1` |
+| 产物 | `jyyj-mcp-3.0.0.1-win-x64.zip`（7,382,535 B）、139 文件部署 |
+| schema 审计 | 31 工具 / 328 动作 / 534 参数，`FINDINGS: none` |
+| 文档计数守卫 | PASS |
+
+### 固化的教训
+
+**「恰好一致的文档」比「明显错误的文档」更危险**——它会在第一个版本上全部验证通过，
+然后在第一次真实变动时集体失真。版本回读这类「多来源必须一致」的不变量，
+不能靠文档声明，必须有 selftest 级别的断言兜底。

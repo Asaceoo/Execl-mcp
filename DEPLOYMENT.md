@@ -1,6 +1,6 @@
 # jyyj-mcp 助手 本地部署说明
 
-**版本**：jyyj-mcp 助手 **v3.0.0.0**（四段版本号）
+**版本**：jyyj-mcp 助手 **v3.0.0.1**（四段版本号）
 **基线**：上游 `sbroenne/mcp-server-excel` 2.0.8 + 本地补丁（切片器多透视表联动 + 图表创建路径修复 + 错误透传）
 **状态**：已构建、已通过三视角对抗性审查、已真机验证、已部署
 **部署日期**：2026-09-15
@@ -9,8 +9,8 @@
 > **版本号来源**：`mcp-server-excel/Directory.Build.props` 的 `<Version>` —— **单一来源**。
 > 打包时由 `release.sh` 自动递增（支持四段递增，如 `3.0.0.0` → `3.0.0.1`），
 > 产物一律带版本号后缀，不产出无版本号文件。
-> `--version` 输出 `jyyj-mcp 助手 v3.0.0.0`；MCP `initialize` 的 `serverInfo.version`
-> 同样报 `3.0.0.0`（`Directory.Build.props` 里 `<Version>` / `<AssemblyVersion>` / `<FileVersion>`
+> `--version` 输出 `jyyj-mcp 助手 v3.0.0.1`；MCP `initialize` 的 `serverInfo.version`
+> 同样报 `3.0.0.1`（`Directory.Build.props` 里 `<Version>` / `<AssemblyVersion>` / `<FileVersion>`
 > 三者同步，避免"横幅说 A、协议说 B"）。
 > 版本算术由 `python tools/pack.py selftest` 断言（含 `3.0.0.0` → `3.0.0.1` 等 5 个用例）。
 > **编码提示**：`--version` 横幅含中文，经 Windows 控制台代码页输出为 **GBK/cp936** 而非 UTF-8；
@@ -144,14 +144,14 @@ bash release.sh --test       # 额外跑核心测试套件
 
 ```
 > excel-mcp-bin\Sbroenne.ExcelMcp.McpServer.exe --version
-jyyj-mcp 助手 v3.0.0.0
+jyyj-mcp 助手 v3.0.0.1
 ```
 
-MCP `initialize` 回读（`tools/audit_schema.py`）：`serverInfo: name=jyyj-mcp version=3.0.0.0`，
+MCP `initialize` 回读（`tools/audit_schema.py`）：`serverInfo: name=jyyj-mcp version=3.0.0.1`，
 工具面 31 个工具 / 328 个动作 / 534 个参数。
 
 `dist/` 产物（由 `release.sh` 自动生成，zip 与 manifest 带版本号后缀）：
-`jyyj-mcp-3.0.0.0-win-x64.zip`（7,382,504 B）、`jyyj-mcp-3.0.0.0-manifest.json`
+`jyyj-mcp-3.0.0.1-win-x64.zip`（7,382,535 B）、`jyyj-mcp-3.0.0.1-manifest.json`
 （历史产物 `excel-mcp-2.0.8-slicerlink.*` 与 `jyyj-mcp-2.0.8-jyyj.1` 保留在同目录，便于回滚比对）。
 `excel-mcp-bin/VERSION.txt` 与 `<Version>` 同源于 `Directory.Build.props`。
 
@@ -164,7 +164,7 @@ MCP `initialize` 回读（`tools/audit_schema.py`）：`serverInfo: name=jyyj-mc
 
 | 方法 | 结果 |
 |---|---|
-| `initialize` | `name=jyyj-mcp`，`version=3.0.0.0` |
+| `initialize` | `name=jyyj-mcp`，`version=3.0.0.1` |
 | `tools/list` | **31 个工具**（数量未变，靠 action 扩展） |
 | 参数命名 | **534 / 534 全 snake_case**，无 camelCase 混用 |
 | 参数描述 | 无缺失（`screenshot` 的 3 个参数已补齐，见 F7-7）；`audit_schema.py` 报 **FINDINGS: none** |
@@ -414,7 +414,7 @@ python tools/pack.py bump         # 递增
 | 验证项 | 命令 | 结果 |
 |---|---|---|
 | 构建 | `bash release.sh --no-bump` | **0 警告 0 错误** |
-| 部署 + 打包 + 自校验 | 同上 | 139 文件；`jyyj-mcp-3.0.0.0-win-x64.zip`（7,382,504 B）；`version check: jyyj-mcp 助手 v3.0.0.0` |
+| 部署 + 打包 + 自校验 | 同上 | 139 文件；`jyyj-mcp-3.0.0.0-win-x64.zip`（7,382,504 B）；`version check: jyyj-mcp 助手 v3.0.0.1` |
 | MCP schema 审计 | `python tools/audit_schema.py --json _demo/schema-audit.json` | 31 工具 / 328 动作 / 534 参数全 snake_case；**FINDINGS: none** |
 | 边界探针 | `python tools/probe_edge_cases.py` | **15/15 matched expectation** |
 | 文档计数守卫 | `python tools/check_doc_counts.py` | **PASS**（15 条标题 + 工具面交叉校验） |

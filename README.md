@@ -20,6 +20,10 @@
 | [部署手册](DEPLOYMENT.md) | 部署者 | 版本单一来源、补丁表、MCP 配置、验证证据、重建步骤 |
 | [对抗性审查报告](ADVERSARIAL-REVIEW.md) | 维护者 | 三视角问题清单 + 真机证据 + 处置 |
 
+> **版本化快照**：每次发布同时生成带版本号的副本（如 [`USER-GUIDE-v3.0.0.1.md`](USER-GUIDE-v3.0.0.1.md)、
+> [`TECHNICAL-MANUAL-v3.0.0.1.md`](TECHNICAL-MANUAL-v3.0.0.1.md)），内容与上表 canonical 版一致，
+> 文件名即适用版本；日常链接请用 canonical 文件（无需随版本更新）。
+
 ---
 
 ## 它是什么
